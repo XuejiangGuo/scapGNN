@@ -38,7 +38,7 @@ scapGNN is a uniform framework based on the graph neural network (GNN) for singl
 **Fig 2.** The workflow of integrating single-cell multi-omics data by scapGNN. First, GNN model of scapGNN constructs gene-cell association network for gene expression profiles of scRNA-seq data and gene activity matrix of scATAC-seq data, respectively. Second, the Brown's method integrates two gene-cell association networks to combined gene-cell association network. Finally, the RWR algorithm is used to calculate pathway activity scores and identify cell phenotype-associated gene modules with multi-omics information.
 
 # Codes and used
-For detailed functions and usage instructions, please refer to https://cran.rstudio.com/web/packages/scapGNN/vignettes/vignette.html. Or use help() after installing scapGNN package to see the documentation for each function.
+For detailed functions and usage instructions, please refer to https://cran.rstudio.com/web/packages/scapGNN/vignettes/vignette.html or use help() to see the documentation for each function after installing scapGNN package.
 
 # Reference
 The paper is being submitted.
