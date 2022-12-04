@@ -1,0 +1,23 @@
+Package: scapGNN
+Type: Package
+Title: Graph Neural Network-Based Framework for Single Cell Active
+        Pathways and Gene Modules Analysis
+Version: 0.1.3
+Date: 2022-12-3
+Authors@R: c(person("Xudong Han", role = c("aut", "cre","cph"), email = "hanxd1217@163.com"),
+            person("Xujiang Guo", role = "fnd"))
+Author: Xudong Han [aut, cre, cph],
+  Xujiang Guo [fnd]
+Maintainer: Xudong Han <hanxd1217@163.com>
+Description: It is a single cell active pathway analysis tool based on the graph neural network (F. Scarselli (2009) <doi:10.1109/TNN.2008.2005605>; Thomas N. Kipf (2017) <arXiv:1609.02907v4>) to construct the gene-cell association network, infer pathway activity scores from different single cell modalities data, integrate multiple modality data on the same cells into one pathway activity score matrix, identify cell phenotype activated gene modules and parse association networks of gene modules under multiple cell phenotype. In addition, abundant visualization programs are provided to display the results.
+License: GPL (>= 2)
+Encoding: UTF-8
+LazyData: true
+Depends: R (>= 4.1.0)
+RoxygenNote: 7.2.1
+Imports: ActivePathways, AdaptGauss, coop, igraph, mixtools,
+        reticulate, methods,compiler
+Suggests: rmarkdown, knitr
+VignetteBuilder: knitr
+NeedsCompilation: no
+Packaged: 2022-12-02 17:39:58 UTC; 12859
