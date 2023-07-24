@@ -8,6 +8,7 @@ plotCCNetwork(
   network.data,
   cell_id = NULL,
   cell_cluster = FALSE,
+  cluster_method = "louvain",
   vertex.colors = NULL,
   vertex.size = 10,
   vertex.label.cex = 0.8,
@@ -25,9 +26,11 @@ plotCCNetwork(
 \arguments{
 \item{network.data}{The input network data is the result from the \code{ConNetGNN} function.}
 
-\item{cell_id}{A vector of cell phenotype.}
+\item{cell_id}{A vector of cell phenotype.Methods include louvain (default), leading eigen and edge betweenness.}
 
 \item{cell_cluster}{A binary value. Whether to automatically identify cell clusters based on edge betweenness. Default: \code{FALSE}.}
+
+\item{cluster_method}{Community structure detection method}
 
 \item{vertex.colors}{The fill color of the vertex. The number of colors should match the number of cell phenotypes. If \code{NULL (default)}, the system will automatically assign colors.}
 

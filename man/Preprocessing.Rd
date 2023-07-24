@@ -4,10 +4,12 @@
 \alias{Preprocessing}
 \title{Data preprocessing}
 \usage{
-Preprocessing(data, verbose = TRUE)
+Preprocessing(data, parallel.cores = 1, verbose = TRUE)
 }
 \arguments{
 \item{data}{The input data should be a data frame or a matrix where the rows are genes and the columns are cells. The \code{seurat} object are also accepted.}
+
+\item{parallel.cores}{Number of processors to use when doing the calculations in parallel (default: \code{2}). If \code{parallel.cores=0}, then it will use all available core processors unless we set this argument with a smaller number.}
 
 \item{verbose}{Gives information about each step. Default: \code{TRUE}.}
 }
@@ -67,5 +69,5 @@ Prep_data <- Preprocessing(pbmc)
 # in data frame or matrix format
 # containing highly variable genes.
 data("Hv_exp")
-Prep_data <- Preprocessing(Hv_exp[1:300,])
+Prep_data <- Preprocessing(Hv_exp[1:50,])
 }

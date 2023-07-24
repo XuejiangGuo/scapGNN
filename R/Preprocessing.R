@@ -5,6 +5,7 @@
 ##' @description This function is to prepare data for the \code{ConNetGNN} function.
 ##'
 ##' @param data The input data should be a data frame or a matrix where the rows are genes and the columns are cells. The \code{seurat} object are also accepted.
+##' @param parallel.cores Number of processors to use when doing the calculations in parallel (default: \code{2}). If \code{parallel.cores=0}, then it will use all available core processors unless we set this argument with a smaller number.
 ##' @param verbose Gives information about each step. Default: \code{TRUE}.
 ##'
 ##' @details
@@ -24,6 +25,10 @@
 ##'
 ##' @importFrom coop tpcor
 ##' @importFrom methods new
+##' @importFrom parallel makeCluster
+##' @importFrom parallel clusterExport
+##' @importFrom parallel parLapply
+##' @importFrom parallel stopCluster
 ##'
 ##' @export
 ##'
@@ -61,11 +66,15 @@
 ##' # in data frame or matrix format
 ##' # containing highly variable genes.
 ##' data("Hv_exp")
-##' Prep_data <- Preprocessing(Hv_exp[1:300,])
+##' Prep_data <- Preprocessing(Hv_exp[1:50,])
 
-Preprocessing<-function(data,verbose=TRUE){
+Preprocessing<-function(data,parallel.cores=1,verbose=TRUE){
   if(!isLoaded("coop")){
     stop("The package coop is not available!")
+  }
+
+  if(!isLoaded("parallel")){
+    stop("The package parallel is not available!")
   }
 
   if(sum(grep("Seurat",class(data)))!=0){
@@ -101,7 +110,10 @@ Preprocessing<-function(data,verbose=TRUE){
   cellnet[cellnet<0]<-0
   diag(cellnet)<-0
 
-  cellnet_p<-t(apply(cellnet,1,function(x){
+  cl <- makeCluster(parallel.cores)
+
+  cellnet_p<-parLapply(cl,1:nrow(cellnet),function(i,cellnet){
+    x <- cellnet[i,]
     len<-length(which(x>0))
     x1<-rep(0,length(x))
 
@@ -117,7 +129,8 @@ Preprocessing<-function(data,verbose=TRUE){
     }
     x1[x1>0.05]<-0
     return(x1)
-  }))
+  },cellnet)
+  cellnet_p<-do.call("rbind",cellnet_p)
 
   x<-cellnet_p
   x[upper.tri(x)] <- 0
@@ -131,6 +144,11 @@ Preprocessing<-function(data,verbose=TRUE){
   cellnet_p<-cellnet_p+t(cellnet_p)
   cellnet<-cellnet*cellnet_p
 
+  rm(cellnet_p)
+  rm(x)
+  rm(s)
+  gc()
+
   if (verbose) {
     cat("Calculate gene correlation matrix \n")
   }
@@ -138,7 +156,8 @@ Preprocessing<-function(data,verbose=TRUE){
   genenet[genenet<0]<-0
   diag(genenet)<-0
 
-  genenet_p<-t(apply(genenet,1,function(x){
+  genenet_p<-parLapply(cl,1:nrow(genenet),function(i,genenet){
+    x <- genenet[i,]
     len<-length(which(x>0))
     x1<-rep(0,length(x))
 
@@ -154,7 +173,9 @@ Preprocessing<-function(data,verbose=TRUE){
     }
     x1[x1>0.05]<-0
     return(x1)
-  }))
+  },genenet)
+  genenet_p<-do.call("rbind",genenet_p)
+  stopCluster(cl)
 
   x<-genenet_p
   x[upper.tri(x)] <- 0

@@ -106,3 +106,5 @@ data(H9_36h_cpGM_data)
 data.list<-list(H9_0h=H9_0h_cpGM_data,H9_24h=H9_24h_cpGM_data,H9_36h=H9_36h_cpGM_data)
 plotMulPhenGM(data.list,ConNetGNN_data,margin=-0.05)
 
+
+

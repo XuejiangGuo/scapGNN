@@ -30,7 +30,7 @@ plotGANetwork(
 
 \item{rwr.gamma}{Restart parameter. Default: \code{0.7}.}
 
-\item{vertex.colors}{he fill color of the vertex. The number of colors should match the number of cell phenotypes. If \code{NULL (default)}, the system will automatically assign colors.}
+\item{vertex.colors}{The fill color of the vertex. The number of colors should match the number of cell phenotypes. If \code{NULL (default)}, the system will automatically assign colors.}
 
 \item{vertex.size}{The size of the vertex. Default: \code{10}.}
 

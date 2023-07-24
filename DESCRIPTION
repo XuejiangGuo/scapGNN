@@ -2,8 +2,8 @@ Package: scapGNN
 Type: Package
 Title: Graph Neural Network-Based Framework for Single Cell Active
         Pathways and Gene Modules Analysis
-Version: 0.1.3
-Date: 2022-12-3
+Version: 0.1.4
+Date: 2023-7-24
 Authors@R: c(person("Xudong Han", role = c("aut", "cre","cph"), email = "hanxd1217@163.com"),
             person("Xujiang Guo", role = "fnd"))
 Author: Xudong Han [aut, cre, cph],
@@ -14,10 +14,10 @@ License: GPL (>= 2)
 Encoding: UTF-8
 LazyData: true
 Depends: R (>= 4.1.0)
-RoxygenNote: 7.2.1
+RoxygenNote: 7.2.3
 Imports: ActivePathways, AdaptGauss, coop, igraph, mixtools,
-        reticulate, methods,compiler
+        reticulate, methods
 Suggests: rmarkdown, knitr
 VignetteBuilder: knitr
 NeedsCompilation: no
-Packaged: 2022-12-02 17:39:58 UTC; 12859
+Packaged: 2023-07-23 16:15:38 UTC; 12859

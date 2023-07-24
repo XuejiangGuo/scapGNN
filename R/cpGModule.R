@@ -11,6 +11,7 @@
 ##' @param cut.fdr The threshold of false discovery rate (FDR), and genes below this threshold are regarded as gene modules activated by the cell set. Default: \code{0.05}.
 ##' @param parallel.cores Number of processors to use when doing the calculations in parallel (default: \code{2}). If \code{parallel.cores=0}, then it will use all available core processors unless we set this argument with a smaller number.
 ##' @param rwr.gamma Restart parameter. Default: \code{0.7}.
+##' @param normal_dist Whether to use pnorm to calculate P values. Default: \code{TRUE}.Note that if normal_dist is FALSE, we need to increase nperm (we recommend 100).
 ##' @param verbose Gives information about each step. Default: \code{TRUE}.
 ##'
 ##' @details
@@ -51,7 +52,7 @@
 ##' cpGModule_data<-cpGModule(ConNetGNN_data,cellset,nperm=10,parallel.cores=1)
 
 
-cpGModule<-function(network.data,cellset,nperm=100,cut.pvalue=0.01,cut.fdr=0.05,parallel.cores=2,rwr.gamma=0.7,verbose=TRUE){
+cpGModule<-function(network.data,cellset,nperm=100,cut.pvalue=0.01,cut.fdr=0.05,parallel.cores=2,rwr.gamma=0.7,normal_dist=TRUE,verbose=TRUE){
   if(!isLoaded("parallel")){
     stop("The package parallel is not available!")
   }
@@ -92,7 +93,14 @@ cpGModule<-function(network.data,cellset,nperm=100,cut.pvalue=0.01,cut.fdr=0.05,
   names(pp)<-cellset
   pp<-na.omit(pp)
 
-  resW <- RWR(cell_gene_network, pp, gamma=rwr.gamma)
+  diag.D <- apply(cell_gene_network,1,sum);
+  diag.D[diag.D==0] <- Inf;
+  inv.diag.D <- 1/diag.D;
+  nadjM <-cell_gene_network*inv.diag.D
+  rm(diag.D)
+  rm(cell_gene_network)
+
+  resW <- RWR(nadjM, pp, gamma=rwr.gamma)
   Actscores<-resW[geneindex]
 
   if (verbose) {
@@ -100,19 +108,21 @@ cpGModule<-function(network.data,cellset,nperm=100,cut.pvalue=0.01,cut.fdr=0.05,
   }
 
   cl <- makeCluster(parallel.cores)
-  rdmatrix<-parLapply(cl,1:nperm,function(r,cellindex,pp,cell_gene_network,rwr.gamma,geneindex){
-    #set.seed(seed)
+  rdmatrix<-parLapply(cl,1:nperm,function(r,cellindex,pp,nadjM,rwr.gamma,geneindex){
     samplei<-sample(cellindex,size=length(pp))
-    names(samplei)<-row.names(cell_gene_network)[samplei]
-    resW_rd <- RWR(cell_gene_network, samplei, gamma=rwr.gamma)
+    names(samplei)<-row.names(nadjM)[samplei]
+    resW_rd <- RWR(nadjM, samplei, gamma=rwr.gamma)
     return(resW_rd[geneindex])
-  },cellindex,pp,cell_gene_network,rwr.gamma,geneindex)
+  },cellindex,pp,nadjM,rwr.gamma,geneindex)
   stopCluster(cl)
   rdmatrix<-do.call("cbind",rdmatrix)
-
+  
+  gc()
+  
   pvalue<-NULL
   for(j in 1:length(Actscores)){
-    pvalue[j]<-sum(rdmatrix>=Actscores[j])/length(rdmatrix)
+    ifelse(normal_dist==TRUE, pvalue[j]<-pnorm(Actscores[j],mean = mean(rdmatrix), sd = sd(rdmatrix),lower.tail = F),
+           pvalue[j]<-sum(rdmatrix>=Actscores[j])/length(rdmatrix))
   }
 
   fdr<-p.adjust(pvalue,"BH",length(pvalue))

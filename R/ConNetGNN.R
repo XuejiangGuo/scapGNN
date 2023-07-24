@@ -15,8 +15,7 @@
 ##' @param use.VGAE Whether to use Variational Graph AutoEncoder (VGAE). Default: \code{TRUE}.
 ##' @param GAE.epochs The number of epoch for the GAE. Default: \code{300}.
 ##' @param GAE.learning.rate Initial learning rate of GAE. Default: \code{0.01}.
-##' @param cell_val_ratio For GAE that construct cell-cell association networks, the proportion of edges that are extracted as the validation set. Default: \code{0.05}.
-##' @param gene_val_ratio As with parameter \code{cell_val_ratio}, it is simply applied with the construction of gene-gene association networks.
+##' @param GAE_val_ratio For GAE, the proportion of edges that are extracted as the validation set. Default: \code{0.05}.
 ##' @param parallel Whether to use multiple processors to run GAE. Default: \code{FALSE} When \code{parallel=TRUE} (default), tow processors will be used to run GAE.
 ##' @param seed Random number generator seed.
 ##' @param verbose Gives information about each step. Default: \code{TRUE}.
@@ -72,7 +71,7 @@
 ##' require(parallel)
 ##' # Data preprocessing
 ##' data("Hv_exp")
-##' Prep_data <- Preprocessing(Hv_exp[1:300,])
+##' Prep_data <- Preprocessing(Hv_exp[1:50,])
 ##' \dontrun{
 ##' # Specify the python path
 ##' ConNetGNN_data <- ConNetGNN(Prep_data,python.path="../miniconda3/envs/scapGNN_env/python.exe")
@@ -81,7 +80,7 @@
 
 
 ConNetGNN<-function(Prep_data,python.path=NULL,miniconda.path = NULL,AE.epochs=1000,AE.learning.rate=0.001,AE.reg.alpha=0.5,use.VGAE=TRUE,
-                   GAE.epochs = 300,GAE.learning.rate = 0.01,cell_val_ratio=0.05, gene_val_ratio=0.05,parallel=FALSE,seed=125,GPU.use=FALSE,verbose=TRUE){
+                   GAE.epochs = 300,GAE.learning.rate = 0.01,GAE_val_ratio=0.05,parallel=FALSE,seed=125,GPU.use=FALSE,verbose=TRUE){
   if(!isLoaded("reticulate")){
     stop("The package reticulate is not available!")
   }
@@ -146,7 +145,7 @@ ConNetGNN<-function(Prep_data,python.path=NULL,miniconda.path = NULL,AE.epochs=1
     if(python.path=="default"){
       python.path <- Sys.which("python")
     }
-    use_python(python.path, required = T)
+    use_python(python.path)
   }
 
 
@@ -199,14 +198,22 @@ ConNetGNN<-function(Prep_data,python.path=NULL,miniconda.path = NULL,AE.epochs=1
 	source_python(system.file("python", "AutoEncoder.py", package = "scapGNN"))
   }
 
+  if((length(which(HVexp==0))/length(HVexp))>0.8){
+    AE.learning.rate <- 0.0001
+    GAE.learning.rate <- 0.001
+    AE.epochs <- 2000
+    GAE.epochs <- 1000
+  }
+
   AE_data<-AE_function(cell_features=cell_features,
                  gene_features=gene_features,
                  exp=HVexp,ltmg_m=LTMG,DNN_epochs=AE.epochs,
                  DNN_learning_rate=AE.learning.rate,
-                 reg_alpha=AE.reg.alpha,seed=seed)
+                 reg_alpha=AE.reg.alpha,seed=seed,verbose=verbose)
 
   if (verbose) {
-    cat(paste("loss:",AE_data[[4]],"\n",sep = " "))
+    cat(paste("Minimum loss:",AE_data[[4]],"\n",sep = " "))
+    cat(paste("Minimum loss - epoch:",AE_data[[5]],"\n",sep = " "))
   }
 
   if (verbose) {
@@ -218,9 +225,8 @@ ConNetGNN<-function(Prep_data,python.path=NULL,miniconda.path = NULL,AE.epochs=1
     cl <- makeCluster(ncores)
     clusterEvalQ(cl,library(reticulate))
     clusterEvalQ(cl,library(scapGNN))
-    rt<-c(cell_val_ratio,gene_val_ratio)
-    GAE_data<-parLapply(cl,1:2,function(i,AE_data,orig_adj,use.VGAE,GAE.epochs,GAE.learning.rate,seed,python.path,rt){
-      use_python(python.path, required = T)
+    GAE_data<-parLapply(cl,1:2,function(i,AE_data,orig_adj,use.VGAE,GAE.epochs,GAE.learning.rate,seed,python.path,GAE_val_ratio){
+      use_python(python.path)
 
 	  if(GPU.use==TRUE){
 		source_python(system.file("python", "GraphAutoEncoder_GPU.py", package = "scapGNN"))
@@ -230,9 +236,15 @@ ConNetGNN<-function(Prep_data,python.path=NULL,miniconda.path = NULL,AE.epochs=1
 
       res<-GAE_function(net_m=orig_adj[[i]],feature_m=AE_data[[i+1]],
                         use_model=use.VGAE,GAE_epochs=GAE.epochs,
-                      GAE_learning_rate=GAE.learning.rate,seed=seed,ratio_val=rt[i])
+                        GAE_learning_rate=GAE.learning.rate,seed=seed,
+                        ratio_val=GAE_val_ratio,verbose=verbose)
+      if (verbose) {
+        cat(paste("Minimum loss:",res[[2]],"\n",sep = " "))
+        cat(paste("Minimum loss - epoch:",res[[3]],"\n",sep = " "))
+      }
+
       return(res)
-    },AE_data,orig_adj,use.VGAE,GAE.epochs,GAE.learning.rate,seed,python.path,rt)
+    },AE_data,orig_adj,use.VGAE,GAE.epochs,GAE.learning.rate,seed,python.path,GAE_val_ratio)
     stopCluster(cl)
   }else{
 	if(GPU.use==TRUE){
@@ -245,20 +257,27 @@ ConNetGNN<-function(Prep_data,python.path=NULL,miniconda.path = NULL,AE.epochs=1
       cat("Construct cell-cell association network  \n")
     }
     cell_gae<-GAE_function(net_m=orig_adj[[1]],feature_m=AE_data[[2]],
-                      use_model=use.VGAE,GAE_epochs=GAE.epochs,
-                      GAE_learning_rate=GAE.learning.rate,seed=seed,ratio_val=cell_val_ratio)
+                           use_model=use.VGAE,GAE_epochs=GAE.epochs,
+                           GAE_learning_rate=GAE.learning.rate,seed=seed,
+                           ratio_val=GAE_val_ratio,verbose=verbose)
+    if (verbose) {
+      cat(paste("Minimum loss:",cell_gae[[2]],"\n",sep = " "))
+      cat(paste("Minimum loss - epoch:",cell_gae[[3]],"\n",sep = " "))
+    }
+
     if (verbose) {
       cat("Construct gene-gene association network \n")
     }
     gene_gae<-GAE_function(net_m=orig_adj[[2]],feature_m=AE_data[[3]],
-                      use_model=use.VGAE,GAE_epochs=GAE.epochs,
-                      GAE_learning_rate=GAE.learning.rate,seed=seed,ratio_val=gene_val_ratio)
-    GAE_data<-list(cell_gae,gene_gae)
-  }
+                           use_model=use.VGAE,GAE_epochs=GAE.epochs,
+                           GAE_learning_rate=GAE.learning.rate,seed=seed,
+                           ratio_val=GAE_val_ratio,verbose=verbose)
+    if (verbose) {
+      cat(paste("Minimum loss:",gene_gae[[2]],"\n",sep = " "))
+      cat(paste("Minimum loss - epoch:",gene_gae[[3]],"\n",sep = " "))
+    }
 
-  if (verbose) {
-    cat(paste("loss:",GAE_data[[1]][[2]],"\n",sep = " "))
-    cat(paste("loss:",GAE_data[[2]][[2]],"\n",sep = " "))
+    GAE_data<-list(cell_gae,gene_gae)
   }
 
   cell_net<-GAE_data[[1]][[1]]

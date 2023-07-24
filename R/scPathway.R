@@ -8,9 +8,11 @@
 ##' @param gmt.path Pathway database in \code{GMT} format.
 ##' @param pathway.min Minimum size (in genes) for pathway to be considered. Default: \code{10}.
 ##' @param pathway.max Maximum size (in genes) for database gene sets to be considered. Default: \code{500}.
-##' @param nperm Number of random permutations. Default: \code{10}. We recommend setting it to 100 times.
+##' @param nperm Number of random permutations. Default: \code{50}. We recommend the setting of 100.
 ##' @param parallel.cores Number of processors to use when doing the calculations in parallel (default: \code{2}). If \code{parallel.cores=0}, then it will use all available core processors unless we set this argument with a smaller number.
 ##' @param rwr.gamma Restart parameter. Default: \code{0.7}.
+##' @param normal_dist Whether to use pnorm to calculate P values. Default: \code{TRUE}.Note that if normal_dist is FALSE, we need to increase nperm (we recommend 100).
+##' @param seed Random number generator seed.
 ##' @param verbose Gives information about each step. Default: \code{TRUE}.
 ##'
 ##' @details
@@ -41,11 +43,11 @@
 ##' # library(compiler)
 ##' # scPathway<- cmpfun(scPathway)
 ##' scPathway_data<-scPathway(ConNetGNN_data,gmt.path=kegg.path,
-##'                           pathway.min=25,nperm=6,parallel.cores=1)
+##'                           pathway.min=25,nperm=2,parallel.cores=1)
 ##'
 
 
-scPathway<-function(network.data,gmt.path=NULL,pathway.min=10,pathway.max=500,nperm=10,parallel.cores=2,rwr.gamma=0.7,verbose=TRUE){
+scPathway<-function(network.data,gmt.path=NULL,pathway.min=10,pathway.max=500,nperm=50,parallel.cores=2,rwr.gamma=0.7,normal_dist=TRUE,seed=1217,verbose=TRUE){
   if(!isLoaded("utils")){
     stop("The package utils is not available!")
   }
@@ -77,60 +79,101 @@ scPathway<-function(network.data,gmt.path=NULL,pathway.min=10,pathway.max=500,np
   cellindex<-c(1:cell_n)
   geneindex<-(cell_n+1):nrow(cell_gene_network)
 
+  rm(c_net)
+  rm(g_net)
+  rm(cg_net)
+  rm(network.data)
+
+  diag.D <- apply(cell_gene_network,1,sum);
+  diag.D[diag.D==0] <- Inf;
+  inv.diag.D <- 1/diag.D;
+  nadjM <-cell_gene_network*inv.diag.D
+  rm(diag.D)
+  rm(cell_gene_network)
+
   pathway_list<-load_path_data(gmt.path)
 
   del<-NULL
+  path_length <- NULL
   for(i in 1:length(pathway_list)){
-    inte<-length(intersect(pathway_list[[i]],row.names(cell_gene_network)))
+    intgenes <- intersect(pathway_list[[i]],row.names(nadjM))
+    inte<-length(intgenes)
     if(inte<pathway.min|inte>pathway.max){
       del<-c(del,i)
+    }else{
+      path_length <- c(path_length,inte)
+      pathway_list[[i]] <- intgenes
     }
   }
-  pathway_list<-pathway_list[-del]
+
+  if(is.null(del)==FALSE){
+    pathway_list<-pathway_list[-del]
+  }
+
+  path_length_uniq <- unique(path_length)
 
   if(verbose){
     cat(paste(length(pathway_list),"pathways are used for RWR","\n",sep = " "))
   }
 
-  cl <- makeCluster(parallel.cores)
-  #clusterEvalQ(cl,library(scapGNN))
-  clusterExport(cl,'RWR')
 
-
-  saPW_matrix<-NULL
 
   if(verbose){
-    cat("start perturbation \n")
+    cat("Start perturbation \n")
+  }
+
+  cl <- makeCluster(parallel.cores)
+
+  clusterExport(cl,'RWR')
+  clusterExport(cl,'set.seed')
+  set.seed(seed)
+  seed_v <- sample(1:(nperm+500),nperm)
+
+  pb <- txtProgressBar(style=3)
+  rd_m <- list()
+  for(i in 1:length(path_length_uniq)){
+    setTxtProgressBar(pb, i/length(path_length_uniq))
+
+    cd <- path_length_uniq[i]
+    rdmatrix<-parLapply(cl,1:nperm,function(r,geneindex,nadjM,rwr.gamma,cellindex,cd,seed_v){
+      set.seed(seed_v[r])
+      samplei<-sample(geneindex,size=cd)
+      names(samplei)<-row.names(nadjM)[samplei]
+
+      resW_rd <- RWR(nadjM, samplei, gamma=rwr.gamma)
+      return(resW_rd[cellindex])
+    },geneindex,nadjM,rwr.gamma,cellindex,cd,seed_v)
+    rd_m[[i]]<-do.call("rbind",rdmatrix)
+
+    gc()
+  }
+  stopCluster(cl)
+  rm(rdmatrix)
+
+  if(verbose){
+    cat("\nCalculate the scores \n")
   }
 
   pb <- txtProgressBar(style=3)
-  for(i in 1:length(pathway_list)){
+  saPW_matrix <- lapply(1:length(pathway_list),function(i){
     setTxtProgressBar(pb, i/length(pathway_list))
 
-    pp<-match(pathway_list[[i]],row.names(cell_gene_network))
-    names(pp)<-pathway_list[[i]]
-    pp<-na.omit(pp)
+    index<-match(pathway_list[[i]],row.names(nadjM))
+    names(index)<-pathway_list[[i]]
+    resW <- RWR(nadjM, index, gamma=rwr.gamma)
 
-    resW <- RWR(cell_gene_network, pp, gamma=rwr.gamma)
-
-    rdmatrix<-parLapply(cl,1:nperm,function(r,geneindex,pp,cell_gene_network,rwr.gamma,cellindex){
-      samplei<-sample(geneindex,size=length(pp))
-      names(samplei)<-row.names(cell_gene_network)[samplei]
-      resW_rd <- RWR(cell_gene_network, samplei, gamma=rwr.gamma)
-      return(resW_rd[cellindex])
-    },geneindex,pp,cell_gene_network,rwr.gamma,cellindex)
-    rdmatrix<-do.call("rbind",rdmatrix)
-
+    pp <- which(path_length_uniq==path_length[i])
     pvalue<-NULL
     for(j in 1:cell_n){
-      pvalue[j]<-sum(rdmatrix[,j]>=resW[j])/nperm
+      ifelse(normal_dist==TRUE, pvalue[j]<-1-pnorm(resW[j],mean = mean(rd_m[[pp]][,j]), sd = sd(rd_m[[pp]][,j]),lower.tail = F),
+             pvalue[j]<- 1-sum(rd_m[[pp]][,j]>=resW[j])/nperm)
     }
-    saPW_matrix<-rbind(saPW_matrix,pvalue)
-  }
-  stopCluster(cl)
-  row.names(saPW_matrix)<-names(pathway_list)
-  colnames(saPW_matrix)<-colnames(c_net)
+    return(pvalue)
+  })
+  saPW_matrix<-do.call("rbind",saPW_matrix)
 
-  saPW_matrix <- 1-saPW_matrix
+  row.names(saPW_matrix)<-names(pathway_list)
+  colnames(saPW_matrix)<-colnames(nadjM)[cellindex]
+  saPW_matrix <- signif(saPW_matrix,2)
   return(saPW_matrix)
 }

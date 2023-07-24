@@ -10,7 +10,7 @@
 ##' @param cellset A vector of cell id. A cell set corresponding to the specified cell phenotype.
 ##' @param geneset A vector of gene id. A gene module or pathway.
 ##' @param rwr.gamma Restart parameter. Default: \code{0.7}.
-##' @param vertex.colors he fill color of the vertex. The number of colors should match the number of cell phenotypes. If \code{NULL (default)}, the system will automatically assign colors.
+##' @param vertex.colors The fill color of the vertex. The number of colors should match the number of cell phenotypes. If \code{NULL (default)}, the system will automatically assign colors.
 ##' @param vertex.size The size of the vertex. Default: \code{10}.
 ##' @param vertex.label.cex The font size for vertex labels. Default: \code{0.8}.
 ##' @param vertex.label.dist The distance of the label from the center of the vertex. If it is 0 then the label is centered on the vertex. Default: \code{1}.

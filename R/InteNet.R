@@ -54,7 +54,6 @@ InteNet<-function(RNA_net,ATAC_net,parallel.cores=2,verbose=TRUE){
   }
 
   Integrate_m<-list()
-  ver<-c("Integrate cell network \n","Integrate gene network \n","Integrate cell-gene network \n")
 
   #cell
   if(verbose==TRUE){
@@ -64,8 +63,12 @@ InteNet<-function(RNA_net,ATAC_net,parallel.cores=2,verbose=TRUE){
   clusterEvalQ(cl,library(ActivePathways))
   px<-match(colnames(RNA_net[["cell_network"]]),colnames(ATAC_net[["cell_network"]]))
   inte_cell<-parLapply(cl,1:nrow(RNA_net[["cell_network"]]),function(j,inter_ATAC,inter_RNA){
-      ret<-merge_p_values(as.matrix(cbind(as.numeric(inter_RNA[j,]), as.numeric(inter_ATAC[j,]))), method='Brown')
-      return(ret)
+      r <- as.numeric(inter_RNA[j,])
+      a <- as.numeric(inter_ATAC[j,])
+      ret<-merge_p_values(as.matrix(cbind(r, a)), method='Brown')
+      int <- rbind(ret,r,a)
+      int1 <- apply(int, 2, max)
+      return(int1)
   },ATAC_net[["cell_network"]][px,px],RNA_net[["cell_network"]])
   stopCluster(cl)
   inte_cell<-do.call("rbind",inte_cell)
@@ -86,8 +89,12 @@ InteNet<-function(RNA_net,ATAC_net,parallel.cores=2,verbose=TRUE){
   cl <- makeCluster(parallel.cores)
   clusterEvalQ(cl,library(ActivePathways))
   inte_cell<-parLapply(cl,1:nrow(RNA_jj),function(j,inter_ATAC,inter_RNA){
-    ret<-merge_p_values(as.matrix(cbind(as.numeric(inter_RNA[j,]), as.numeric(inter_ATAC[j,]))), method='Brown')
-    return(ret)
+    r <- as.numeric(inter_RNA[j,])
+    a <- as.numeric(inter_ATAC[j,])
+    ret<-merge_p_values(as.matrix(cbind(r, a)), method='Brown')
+    int <- rbind(ret,r,a)
+    int1 <- apply(int, 2, max)
+    return(int1)
   },ATAC_jj,RNA_jj)
   stopCluster(cl)
   inte_cell<-do.call("rbind",inte_cell)
@@ -142,8 +149,12 @@ InteNet<-function(RNA_net,ATAC_net,parallel.cores=2,verbose=TRUE){
   cl <- makeCluster(parallel.cores)
   clusterEvalQ(cl,library(ActivePathways))
   inte_cell<-parLapply(cl,1:nrow(RNA_jj),function(j,inter_ATAC,inter_RNA){
-    ret<-merge_p_values(as.matrix(cbind(as.numeric(inter_RNA[j,]), as.numeric(inter_ATAC[j,]))), method='Brown')
-    return(ret)
+    r <- as.numeric(inter_RNA[j,])
+    a <- as.numeric(inter_ATAC[j,])
+    ret<-merge_p_values(as.matrix(cbind(r, a)), method='Brown')
+    int <- rbind(ret,r,a)
+    int1 <- apply(int, 2, max)
+    return(int1)
   },ATAC_jj,RNA_jj)
   stopCluster(cl)
   inte_cell<-do.call("rbind",inte_cell)

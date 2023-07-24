@@ -12,6 +12,7 @@ cpGModule(
   cut.fdr = 0.05,
   parallel.cores = 2,
   rwr.gamma = 0.7,
+  normal_dist = TRUE,
   verbose = TRUE
 )
 }
@@ -29,6 +30,8 @@ cpGModule(
 \item{parallel.cores}{Number of processors to use when doing the calculations in parallel (default: \code{2}). If \code{parallel.cores=0}, then it will use all available core processors unless we set this argument with a smaller number.}
 
 \item{rwr.gamma}{Restart parameter. Default: \code{0.7}.}
+
+\item{normal_dist}{Whether to use pnorm to calculate P values. Default: \code{TRUE}.Note that if normal_dist is FALSE, we need to increase nperm (we recommend 100).}
 
 \item{verbose}{Gives information about each step. Default: \code{TRUE}.}
 }

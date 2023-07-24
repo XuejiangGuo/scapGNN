@@ -44,7 +44,8 @@ def loss_function(recon_m, m, ltmg_m, alpha=0.5):
     return loss
 
 
-def AE_function(cell_features, gene_features, exp, ltmg_m, DNN_epochs=1000, DNN_learning_rate=0.001, reg_alpha=0.5, seed = 1217):
+def AE_function(cell_features, gene_features, exp, ltmg_m, DNN_epochs=1000, DNN_learning_rate=0.001, reg_alpha=0.5, seed = 1217, verbose = True):
+    DNN_epochs = int(DNN_epochs)
     cell_exp = torch.tensor(cell_features)
     cell_exp = cell_exp.type(torch.FloatTensor)
     cdim = cell_exp.shape[1]
@@ -68,7 +69,7 @@ def AE_function(cell_features, gene_features, exp, ltmg_m, DNN_epochs=1000, DNN_
     optimizer = torch.optim.Adam(model.parameters(), lr=DNN_learning_rate)
 
     min_loss_val = 10000
-    for epoch in range(int(DNN_epochs)):
+    for epoch in range(DNN_epochs):
         gcron, cf, gf = model(cell_exp, gene_exp)
 
         loss = loss_function(gcron, gclabel, ltmg, alpha=reg_alpha)
@@ -78,17 +79,20 @@ def AE_function(cell_features, gene_features, exp, ltmg_m, DNN_epochs=1000, DNN_
         loss.backward()
         optimizer.step()
 
-        #if epoch % 200 == 0:
-            #print("Epoch {:02d}, Loss {:9.4f}".format(epoch, loss.item()))
+        if verbose:
+            print("Progress (%): {}".format(round(epoch / DNN_epochs, 2) * 100), end="\r")
 
-        if loss < min_loss_val:
+        if loss < min_loss_val and epoch > 5:
             min_loss_val = loss.item()
             best_gcron = gcron
             best_cf = cf
             best_gf = gf
+            best_epoch = epoch
+    if verbose:
+        print("Minimum loss: {}".format(min_loss_val), end="\r")
+        print("Minimum loss - epoch : {}".format(best_epoch), end="\r")
 
     best_gcron = np.array(best_gcron.detach()) 
     best_cf = np.array(best_cf.detach())
     best_gf = np.array(best_gf.detach())
-    return best_gcron, best_cf, best_gf, min_loss_val
-
+    return best_gcron, best_cf, best_gf, min_loss_val, best_epoch

@@ -14,8 +14,7 @@ ConNetGNN(
   use.VGAE = TRUE,
   GAE.epochs = 300,
   GAE.learning.rate = 0.01,
-  cell_val_ratio = 0.05,
-  gene_val_ratio = 0.05,
+  GAE_val_ratio = 0.05,
   parallel = FALSE,
   seed = 125,
   GPU.use = FALSE,
@@ -41,9 +40,7 @@ ConNetGNN(
 
 \item{GAE.learning.rate}{Initial learning rate of GAE. Default: \code{0.01}.}
 
-\item{cell_val_ratio}{For GAE that construct cell-cell association networks, the proportion of edges that are extracted as the validation set. Default: \code{0.05}.}
-
-\item{gene_val_ratio}{As with parameter \code{cell_val_ratio}, it is simply applied with the construction of gene-gene association networks.}
+\item{GAE_val_ratio}{For GAE, the proportion of edges that are extracted as the validation set. Default: \code{0.05}.}
 
 \item{parallel}{Whether to use multiple processors to run GAE. Default: \code{FALSE} When \code{parallel=TRUE} (default), tow processors will be used to run GAE.}
 
@@ -96,7 +93,7 @@ require(reticulate)
 require(parallel)
 # Data preprocessing
 data("Hv_exp")
-Prep_data <- Preprocessing(Hv_exp[1:300,])
+Prep_data <- Preprocessing(Hv_exp[1:50,])
 \dontrun{
 # Specify the python path
 ConNetGNN_data <- ConNetGNN(Prep_data,python.path="../miniconda3/envs/scapGNN_env/python.exe")
